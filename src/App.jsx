@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import LandingPage from './LandingPage';
 import Dashboard from './UserDashboard';
+import MentorDashboard from './MentorDashboard';
 
 export default function App() {
   // 1. Initialisation de l'état avec l'utilisateur stocké en local (si existant)
@@ -29,10 +30,14 @@ export default function App() {
   };
 
   // 4. Rendu conditionnel basé sur la présence d'une session utilisateur
-  return (
+ return (
     <div className="bg-brand-black min-h-screen text-white font-sans">
       {user ? (
-        <Dashboard user={user} onLogout={handleLogout} />
+        user.role === 'ROLE_MENTOR' ? (
+          <MentorDashboard user={user} onLogout={handleLogout} />
+        ) : (
+          <Dashboard user={user} onLogout={handleLogout} />
+        )
       ) : (
         <LandingPage onLoginSuccess={handleLoginSuccess} />
       )}
