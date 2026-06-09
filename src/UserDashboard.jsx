@@ -101,23 +101,27 @@ export default function Dashboard({ user, onUpdateUser, onLogout }) {
   }, [user.id]);
 
   // ─── SYSTEM DE POLLING LÉGER (Toutes les 5 secondes) ───
-  useEffect(() => {
-    // On ne lance le polling que si un mentor est bien assigné
-    if (assignedMentors.length === 0) return;
-    
-    const mentorId = assignedMentors[0].id;
-    
-    // Premier appel immédiat
-    fetchChatMessages(mentorId);
+useEffect(() => {
+  if (assignedMentors.length === 0) return;
 
-    // Mise en place de l'intervalle de 5 secondes
-    const interval = setInterval(() => {
-      fetchChatMessages(mentorId);
-    }, 5000);
+  const mentorUserId =
+    assignedMentors[0].user?.id ||
+    assignedMentors[0].userId ||
+    assignedMentors[0].user_id;
 
-    // Nettoyage de l'intervalle si le composant est démonté
-    return () => clearInterval(interval);
-  }, [assignedMentors]);
+  if (!mentorUserId) {
+    console.error("Mentor userId is missing:", assignedMentors[0]);
+    return;
+  }
+
+  fetchChatMessages(mentorUserId);
+
+  const interval = setInterval(() => {
+    fetchChatMessages(mentorUserId);
+  }, 5000);
+
+  return () => clearInterval(interval);
+}, [assignedMentors]);
 
   // Scroll automatique au bas du chat à chaque mise à jour des messages
 useEffect(() => {
@@ -212,37 +216,41 @@ useEffect(() => {
 
   // ─── ACTION : ENVOYER UN MESSAGE DE CHAT EN DIRECT EN BD ───
   const handleSendLiveChatMessage = async (e) => {
-    e.preventDefault();
-    if (!chatInput.trim() || assignedMentors.length === 0) return;
+  e.preventDefault();
+  if (!chatInput.trim() || assignedMentors.length === 0) return;
 
-    const mentorId = assignedMentors[0].id;
-    const messagePayload = {
-      senderId: user.id,
-      receiverId: mentorId,
-      content: chatInput.trim()
-    };
+  // This is the mentor table ID, not the mentor user ID.
+  // Backend will convert mentorId -> mentor.getUser().getId()
+  const mentorId = assignedMentors[0].id;
 
-    try {
-      const response = await fetch("http://localhost:8080/api/messages/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(messagePayload)
-      });
-
-      if (response.ok) {
-        const newMsg = await response.json();
-        // Optionnel : on l'ajoute directement à l'état pour une réactivité instantanée à l'écran
-        setChatMessages((prev) => [...prev, newMsg]);
-        setChatInput('');
-      } else {
-        console.error("Échec du traitement du message par le serveur");
-      }
-    } catch (error) {
-      console.error("Erreur réseau lors de l'envoi :", error);
-    }
+  const messagePayload = {
+    senderId: user.id,
+    mentorId: mentorId,
+    content: chatInput.trim()
   };
+
+  try {
+    const response = await fetch("http://localhost:8080/api/messages/send-to-mentor", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(messagePayload)
+    });
+
+    if (response.ok) {
+      const newMsg = await response.json();
+      setChatMessages((prev) => [...prev, newMsg]);
+      setChatInput('');
+    } else {
+      const errorText = await response.text();
+      console.error("Échec du traitement du message par le serveur:", errorText);
+    }
+  } catch (error) {
+    console.error("Erreur réseau lors de l'envoi :", error);
+  }
+};
 
   const handleSelectPlan = (plan) => {
     if (plan === 'GRATUIT') {
