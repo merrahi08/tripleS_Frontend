@@ -2,22 +2,22 @@ import React, { useState, useEffect } from 'react';
 
 export default function MentorDashboard({ user, onLogout }) {
   const [assignedClients, setAssignedClients] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  console.log(user.id);
-  
-  // 🌐 Live fetch for this mentor's specific clients
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [claimingId, setClaimingId] = useState(null);
+
+  // 🌐 Live data sync: Fetches both assigned clients and pending requests based on the logged-in User ID
   useEffect(() => {
-    // 1. Ensure user and user.id exist before making the API call
     if (!user || !user.id) return;
 
     setLoading(true);
+    setLoadingRequests(true);
 
-    // 2. Fetch data from your custom endpoint using user.id
+    // 1. Fetch Assigned Active Clients (Maps User ID to Mentor Table underneath)
     fetch(`http://localhost:8080/api/mentors/clients?userId=${user.id}`)
       .then((response) => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
+        if (!response.ok) throw new Error("Network response was not ok");
         return response.json();
       })
       .then((data) => {
@@ -28,8 +28,79 @@ export default function MentorDashboard({ user, onLogout }) {
         console.error("Error fetching clients:", error);
         setLoading(false);
       });
+
+    // 2. Fetch Pending Incubation Demands using the precise Mentor User ID endpoint
+    fetch(`http://localhost:8080/api/requests/pending?userId=${user.id}`)
+      .then((response) => {
+        if (!response.ok) throw new Error("Could not fetch pending demands");
+        return response.json();
+      })
+      .then((data) => {
+        setPendingRequests(data);
+        setLoadingRequests(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching incubator demands:", error);
+        setLoadingRequests(false);
+      });
       
-  }, [user?.id]); // 3. Re-run the effect if the user ID changes
+  }, [user?.id]);
+
+  // 🤝 Action handler to claim an incoming request and store it in the database
+ const handleClaimRequest = async (requestId) => {
+    // 1. Locate the request card object in local state to retrieve its assigned mentorId sequence
+    const targetRequest = pendingRequests.find(r => r.id === requestId);
+    if (!targetRequest || !targetRequest.mentorId) {
+      alert("Impossible de déterminer l'identifiant du mentor pour cette requête.");
+      return;
+    }
+
+    try {
+      setClaimingId(requestId);
+      
+      // 2. Explicitly call your backend claim request endpoint with parameters
+      // Format matches: /api/requests/{id}/claim?mentorId={mentorId}
+      const response = await fetch(`http://localhost:8080/api/requests/${requestId}/claim?mentorId=${targetRequest.mentorId}`, {
+        method: "PUT",
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur serveur lors de l'acceptation de la demande.");
+      }
+
+      const updatedRequest = await response.json();
+      alert(`🎉 Succès! La demande N°${updatedRequest.id} a été acceptée.`);
+
+      // 3. Update UI state loops instantly to keep everything completely synchronized
+      // Remove the claimed ticket from the pending requests sidebar array
+      setPendingRequests(prev => prev.filter(req => req.id !== requestId));
+      
+      // 4. Trigger a refresh of the assigned clients panel on the left to display the newly integrated member
+      setLoading(true);
+      fetch(`http://localhost:8080/api/mentors/clients?userId=${user.id}`)
+        .then((res) => {
+          if (!res.ok) throw new Error();
+          return res.json();
+        })
+        .then((data) => {
+          setAssignedClients(data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Error updating clients workspace panel:", err);
+          setLoading(false);
+        });
+
+    } catch (error) {
+      console.error("Claim operation failed:", error);
+      alert(error.message || "Une erreur est survenue lors de l'intégration.");
+    } finally {
+      setClaimingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black text-white p-8 w-full flex flex-col justify-between">
@@ -66,14 +137,14 @@ export default function MentorDashboard({ user, onLogout }) {
           </div>
           <div className="p-4 bg-zinc-900/50 border border-white/5 rounded-xl">
             <p className="text-xs text-gray-400 uppercase font-medium">Demandes en attente</p>
-            <p className="text-2xl font-bold mt-1 text-amber-400">1</p>
+            <p className="text-2xl font-bold mt-1 text-amber-400">{pendingRequests.length}</p>
           </div>
         </section>
 
         {/* ─── MAIN CONTENT SPLIT ─── */}
         <main className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* LEFT: Assigned Clients Workspace List (2 Columns) */}
+          {/* LEFT WORKSPACE: Assigned Clients List (Takes up 2 Columns) */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-zinc-900/30 border border-white/5 rounded-2xl p-6">
               <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4">Vos Porteurs de Projet Actifs</h3>
@@ -116,8 +187,64 @@ export default function MentorDashboard({ user, onLogout }) {
             </div>
           </div>
 
-          {/* RIGHT SIDEBAR: Live Calendar / Reminders (1 Column) */}
+          {/* RIGHT SIDEBAR: Pending Incubation Requests Module & Calendar Tracker (Takes up 1 Column) */}
           <div className="space-y-6">
+            
+            {/* DYNAMIC INCUBATION REQUESTS INTERACTION HUB */}
+            <div className="bg-zinc-900/30 border border-white/5 rounded-2xl p-6">
+              <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-3 flex justify-between items-center">
+                <span>Demandes d'Incubation</span>
+                <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold">
+                  {pendingRequests.length} EN ATTENTE
+                </span>
+              </h3>
+
+              {loadingRequests ? (
+                <div className="text-xs text-gray-500 py-2">Recherche des requêtes d'incubation...</div>
+              ) : pendingRequests.length === 0 ? (
+                <p className="text-xs text-gray-500 italic py-2">
+                  Aucun message d'accompagnement en attente.
+                </p>
+              ) : (
+                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                  {pendingRequests.map((req) => (
+                    <div 
+                      key={req.id} 
+                      className="p-3 bg-zinc-900/80 border border-white/5 rounded-xl space-y-2 hover:border-purple-500/20 transition-all"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-xs font-bold text-gray-200 line-clamp-1">
+                          {req.subject || "Demande d'accompagnement"}
+                        </span>
+                        <span className="text-[9px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0">
+                          {req.status}
+                        </span>
+                      </div>
+                      
+                      <p className="text-[11px] text-gray-400 leading-relaxed break-words">
+                        {req.description}
+                      </p>
+                      
+                      <div className="text-[9px] text-gray-500 pt-1 flex justify-between items-center border-t border-white/5 pb-2">
+                        <span>Ticket: #{req.id}</span>
+                        <span>Porteur ID: {req.userId}</span>
+                      </div>
+
+                      {/* Interactive Button to automatically link data across tables */}
+                      <button
+                        onClick={() => handleClaimRequest(req.id)}
+                        disabled={claimingId !== null}
+                        className="w-full py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-bold text-xs rounded-md transition-all text-center block shadow-sm"
+                      >
+                        {claimingId === req.id ? "Traitement..." : "🤝 Accepter & Intégrer le Projet"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* SCHEDULE/CALENDAR SECTION */}
             <div className="bg-zinc-900/30 border border-white/5 rounded-2xl p-6">
               <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-3">🗓️ Prochaines Sessions</h3>
               <div className="space-y-3 text-xs text-gray-400">
@@ -131,6 +258,7 @@ export default function MentorDashboard({ user, onLogout }) {
                 </div>
               </div>
             </div>
+
           </div>
 
         </main>

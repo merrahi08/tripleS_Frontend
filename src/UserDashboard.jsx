@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export default function Dashboard({ user, onUpdateUser, onLogout }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -6,14 +6,19 @@ export default function Dashboard({ user, onUpdateUser, onLogout }) {
   const [targetTier, setTargetTier] = useState(null);
   const [updating, setUpdating] = useState(false);
 
-  // Feature specific fake states
+  // Feature specific states
   const [aiPrompt, setAiPrompt] = useState('');
-const [aiMessages, setAiMessages] = useState([]);  
-const [loadingAi, setLoadingAi] = useState(false);
+  const [aiMessages, setAiMessages] = useState([]);  
+  const [loadingAi, setLoadingAi] = useState(false);
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [mentorMessage, setMentorMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
 
-  // Fake Credit Card Form Fields State
+  // Client Incubation Requests State
+  const [userRequests, setUserRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+
+  // Credit Card Form Fields State
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
@@ -24,100 +29,120 @@ const [loadingAi, setLoadingAi] = useState(false);
 
   const currentTier = user.tier || user.selectedTier || "GRATUIT";
 
-  // Mock Data for Mentors (Unlocked for PREMIUM)
-  const mentors = [
-    {
-      id: 1,
-      name: "Youssef El Alami",
-      role: "Expert Financement Tamwilcom",
-      dynamic: "Dispo demain"
-    },
-    {
-      id: 2,
-      name: "Sarah Benzouak",
-      role: "Growth Hacker & Acquisition",
-      dynamic: "En ligne"
-    },
-    {
-      id: 3,
-      name: "Amine Chraibi",
-      role: "Pitch Coach & Ex-Forsa Jury",
-      dynamic: "Dispo cette semaine"
+  const [mentors, setMentors] = useState([]);
+  const [loadingMentors, setLoadingMentors] = useState(false);
+  const [mentorsError, setMentorsError] = useState('');
+
+  // Fetch the current user's incubation requests
+  const fetchUserRequests = async () => {
+    try {
+      setLoadingRequests(true);
+      // We read all open/pending requests from the hub to filter or display
+      const response = await fetch("http://localhost:8080/api/requests/open", {
+        method: "GET",
+        headers: { "Accept": "application/json" },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Filter requests belonging to this specific user
+        const filtered = data.filter(req => req.userId === user.id);
+        setUserRequests(filtered);
+      }
+    } catch (error) {
+      console.error("Error fetching user requests:", error);
+    } finally {
+      setLoadingRequests(false);
     }
-  ];
+  };
+
+  // Run on initialization
+  useEffect(() => {
+    fetchUserRequests();
+  }, [user.id]);
 
   // Real AI Engine for STANDARD/PREMIUM
-const handleAskAi = async (e) => {
-  e.preventDefault();
-
-  const prompt = aiPrompt.trim();
-  if (!prompt) return;
-
-  setLoadingAi(true);
-
-  // Add user's question to the chat
-  setAiMessages((prev) => [
-    ...prev,
-    {
-      role: "user",
-      content: prompt,
-    },
-  ]);
-
-  // Clear input after sending
-  setAiPrompt("");
-
-  try {
-    const response = await fetch("http://localhost:8080/api/ai/audit", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-      body: JSON.stringify({
-        prompt: prompt,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "Une erreur est survenue lors de l'analyse.");
-    }
-
-    // Add AI response to the chat
-    setAiMessages((prev) => [
-      ...prev,
-      {
-        role: "ai",
-        content: data.analysis,
-      },
-    ]);
-
-  } catch (error) {
-    console.error("Fetch failure:", error);
-
-    setAiMessages((prev) => [
-      ...prev,
-      {
-        role: "error",
-        content: error.message || "Impossible de contacter l'IA Co-Pilot.",
-      },
-    ]);
-  } finally {
-    setLoadingAi(false);
-  }
-};
-
-  // Simulated Messaging for PREMIUM Mentors
-  const handleSendMessageToMentor = (e) => {
+  const handleAskAi = async (e) => {
     e.preventDefault();
+    const prompt = aiPrompt.trim();
+    if (!prompt) return;
 
-    if (!mentorMessage) return;
+    setLoadingAi(true);
+    setAiMessages((prev) => [...prev, { role: "user", content: prompt }]);
+    setAiPrompt("");
 
-    alert(`✉️ Message envoyé à ${selectedMentor.name} ! Vous recevrez une réponse sous 24h.`);
-    setMentorMessage('');
-    setSelectedMentor(null);
+    try {
+      const response = await fetch("http://localhost:8080/api/ai/audit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({ prompt: prompt }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Une erreur est survenue lors de l'analyse.");
+      }
+
+      setAiMessages((prev) => [...prev, { role: "ai", content: data.analysis }]);
+    } catch (error) {
+      console.error("Fetch failure:", error);
+      setAiMessages((prev) => [
+        ...prev,
+        { role: "error", content: error.message || "Impossible de contacter l'IA Co-Pilot." },
+      ]);
+    } finally {
+      setLoadingAi(false);
+    }
+  };
+
+  // Real API Interaction matching your verified flat JSON layout
+  const handleSendMessageToMentor = async (e) => {
+    e.preventDefault();
+    if (!mentorMessage.trim() || !selectedMentor) return;
+
+    try {
+      setSendingMessage(true);
+
+      const requestBody = {
+        userId: user.id,
+        mentorId: selectedMentor.id,
+        subject: `Accompagnement personnalisé - ${user.name}`,
+        description: mentorMessage.trim(),
+        status: "PENDING"
+      };
+
+      const response = await fetch("http://localhost:8080/api/requests/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Impossible d'enregistrer la demande d'accompagnement.");
+      }
+
+      const savedRequest = await response.json();
+      const mentorName = selectedMentor.name || selectedMentor.user?.name || "votre mentor";
+      
+      alert(`✉️ Demande d'incubation N°${savedRequest.id || ""} créée avec succès auprès de ${mentorName} !`);
+      
+      setMentorMessage('');
+      setSelectedMentor(null);
+      
+      // Refresh the list immediately in the side panel
+      fetchUserRequests();
+    } catch (error) {
+      console.error("Incubation entry failure:", error);
+      alert(error.message || "Une erreur est survenue lors de l'envoi de votre demande.");
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   const handleSelectPlan = (plan) => {
@@ -133,12 +158,9 @@ const handleAskAi = async (e) => {
   const handleUpgrade = async (tierToApply) => {
     try {
       setUpdating(true);
-
       const response = await fetch(`http://localhost:8080/api/users/${user.id}/tier?tier=${tierToApply}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
 
       if (!response.ok) {
@@ -146,10 +168,7 @@ const handleAskAi = async (e) => {
       }
 
       const updatedUser = await response.json();
-
-      if (onUpdateUser) {
-        onUpdateUser(updatedUser);
-      }
+      if (onUpdateUser) onUpdateUser(updatedUser);
 
       setIsPaymentOpen(false);
       setIsModalOpen(false);
@@ -159,7 +178,6 @@ const handleAskAi = async (e) => {
       setCvv('');
 
       alert(`Félicitations ! Votre formule est passée à : ${tierToApply}`);
-
     } catch (error) {
       console.error(error);
       alert("Une erreur est survenue lors de la communication avec le serveur.");
@@ -168,16 +186,40 @@ const handleAskAi = async (e) => {
     }
   };
 
+  useEffect(() => {
+    if (currentTier !== 'PREMIUM') return;
+
+    const fetchMentors = async () => {
+      try {
+        setLoadingMentors(true);
+        setMentorsError('');
+        const response = await fetch("http://localhost:8080/api/mentors", {
+          method: "GET",
+          headers: { "Accept": "application/json" },
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error("Impossible de charger les mentors.");
+
+        setMentors(data);
+      } catch (error) {
+        console.error("Mentors fetch error:", error);
+        setMentorsError(error.message || "Erreur lors du chargement des mentors.");
+      } finally {
+        setLoadingMentors(false);
+      }
+    };
+
+    fetchMentors();
+  }, [currentTier]);
+
   const handleFakeSubmitPayment = (e) => {
     e.preventDefault();
-
     if (!cardNumber || !expiry || !cvv) {
       alert("Veuillez remplir l'ensemble des coordonnées bancaires obligatoires.");
       return;
     }
-
     setUpdating(true);
-
     setTimeout(() => {
       handleUpgrade(targetTier);
     }, 1800);
@@ -295,30 +337,30 @@ const handleAskAi = async (e) => {
                 </form>
 
                 {aiMessages.length > 0 && (
-  <div className="mt-4 space-y-3">
-    {aiMessages.map((message, index) => (
-      <div
-        key={index}
-        className={`p-3 border rounded-xl text-xs leading-relaxed animate-fadeIn whitespace-pre-line ${
-          message.role === "user"
-            ? "bg-purple-600/20 border-purple-500/20 text-purple-100"
-            : message.role === "error"
-            ? "bg-red-500/10 border-red-500/20 text-red-300"
-            : "bg-black/40 border-white/5 text-gray-300"
-        }`}
-      >
-        <strong>
-          {message.role === "user"
-            ? "🧑 You: "
-            : message.role === "error"
-            ? "⚠️ Error: "
-            : "🤖 IA Co-Pilot: "}
-        </strong>
-        {message.content}
-      </div>
-    ))}
-  </div>
-)}
+                  <div className="mt-4 space-y-3">
+                    {aiMessages.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`p-3 border rounded-xl text-xs leading-relaxed animate-fadeIn whitespace-pre-line ${
+                          message.role === "user"
+                            ? "bg-purple-600/20 border-purple-500/20 text-purple-100"
+                            : message.role === "error"
+                            ? "bg-red-500/10 border-red-500/20 text-red-300"
+                            : "bg-black/40 border-white/5 text-gray-300"
+                        }`}
+                      >
+                        <strong>
+                          {message.role === "user"
+                            ? "🧑 You: "
+                            : message.role === "error"
+                            ? "⚠️ Error: "
+                            : "🤖 IA Co-Pilot: "}
+                        </strong>
+                        {message.content}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="bg-brand-darkGray/20 border border-white/5 opacity-60 rounded-2xl p-6 relative overflow-hidden">
@@ -352,30 +394,49 @@ const handleAskAi = async (e) => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                  {mentors.map((m) => (
-                    <div
-                      key={m.id}
-                      className="p-3 bg-black/40 border border-white/5 rounded-xl flex flex-col justify-between"
-                    >
-                      <div>
-                        <h4 className="text-xs font-bold text-white">
-                          {m.name}
-                        </h4>
-                        <p className="text-[10px] text-gray-400 mt-0.5">
-                          {m.role}
-                        </p>
-                      </div>
+                {loadingMentors ? (
+                  <div className="p-4 bg-black/40 border border-white/5 rounded-xl text-xs text-gray-400">
+                    Chargement des mentors...
+                  </div>
+                ) : mentorsError ? (
+                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-300">
+                    {mentorsError}
+                  </div>
+                ) : mentors.length === 0 ? (
+                  <div className="p-4 bg-black/40 border border-white/5 rounded-xl text-xs text-gray-400">
+                    Aucun mentor disponible pour le moment.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                    {mentors.map((m) => {
+                      const mentorName = m.name || m.user?.name || "Mentor";
+                      const mentorRole = m.role || m.speciality || m.specialty || "Mentor startup";
 
-                      <button
-                        onClick={() => setSelectedMentor(m)}
-                        className="mt-3 text-[10px] text-center w-full py-1.5 bg-brand-gold/10 hover:bg-brand-gold text-brand-lightGold hover:text-black rounded-md transition-all font-semibold"
-                      >
-                        Contacter
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                      return (
+                        <div
+                          key={m.id}
+                          className="p-3 bg-black/40 border border-white/5 rounded-xl flex flex-col justify-between"
+                        >
+                          <div>
+                            <h4 className="text-xs font-bold text-white">
+                              {mentorName}
+                            </h4>
+                            <p className="text-[10px] text-gray-400 mt-0.5">
+                              {mentorRole}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => setSelectedMentor(m)}
+                            className="mt-3 text-[10px] text-center w-full py-1.5 bg-brand-gold/10 hover:bg-brand-gold text-brand-lightGold hover:text-black rounded-md transition-all font-semibold"
+                          >
+                            Contacter
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {selectedMentor && (
                   <form
@@ -386,7 +447,7 @@ const handleAskAi = async (e) => {
                       <p className="text-xs text-gray-300">
                         Nouveau message pour :{" "}
                         <strong className="text-brand-lightGold">
-                          {selectedMentor.name}
+                          {selectedMentor.name || selectedMentor.user?.name || "Mentor"}
                         </strong>
                       </p>
 
@@ -394,6 +455,7 @@ const handleAskAi = async (e) => {
                         type="button"
                         onClick={() => setSelectedMentor(null)}
                         className="text-[10px] text-red-400 hover:underline"
+                        disabled={sendingMessage}
                       >
                         Annuler
                       </button>
@@ -404,14 +466,16 @@ const handleAskAi = async (e) => {
                       value={mentorMessage}
                       onChange={(e) => setMentorMessage(e.target.value)}
                       className="w-full h-20 bg-brand-darkGray/50 border border-white/10 rounded-lg p-2 text-xs focus:outline-none focus:border-brand-gold text-gray-200 resize-none"
+                      disabled={sendingMessage}
                       required
                     />
 
                     <button
                       type="submit"
-                      className="px-4 py-1.5 bg-brand-gold text-black text-xs font-bold rounded-md hover:bg-brand-hoverGold transition-all"
+                      disabled={sendingMessage}
+                      className="px-4 py-1.5 bg-brand-gold disabled:opacity-50 disabled:cursor-not-allowed text-black text-xs font-bold rounded-md hover:bg-brand-hoverGold transition-all"
                     >
-                      Envoyer la demande d'accompagnement
+                      {sendingMessage ? "Envoi de la demande..." : "Envoyer la demande d'accompagnement"}
                     </button>
                   </form>
                 )}
@@ -486,6 +550,49 @@ const handleAskAi = async (e) => {
               <p className="text-gray-200 text-sm italic leading-relaxed">
                 "{formattedIdea}"
               </p>
+            </div>
+
+            {/* PENDING REQUESTS SIDE PANEL MODULE */}
+            <div className="bg-brand-darkGray/40 border border-white/5 rounded-2xl p-6">
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex justify-between items-center">
+                <span>Demandes Envoyées</span>
+                <span className="text-[10px] bg-white/5 px-1.5 py-0.5 rounded text-gray-400 font-normal">
+                  {userRequests.length}
+                </span>
+              </h3>
+
+              {loadingRequests ? (
+                <div className="text-xs text-gray-500 py-2">Mise à jour...</div>
+              ) : userRequests.length === 0 ? (
+                <p className="text-xs text-gray-500 italic">
+                  Aucune demande d'incubation en attente.
+                </p>
+              ) : (
+                <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                  {userRequests.map((req) => (
+                    <div 
+                      key={req.id} 
+                      className="p-3 bg-black/40 border border-white/5 rounded-xl space-y-1"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-xs font-bold text-gray-200 line-clamp-1">
+                          {req.subject || "Sans objet"}
+                        </span>
+                        <span className="text-[9px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded uppercase shrink-0">
+                          {req.status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-400 line-clamp-2">
+                        {req.description}
+                      </p>
+                      <div className="text-[9px] text-gray-500 pt-1 flex justify-between">
+                        <span>ID: #{req.id}</span>
+                        <span>Mentor ID: {req.mentorId || 'Aucun'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="bg-brand-darkGray/40 border border-white/5 rounded-2xl p-6">
