@@ -33,7 +33,7 @@ export default function App() {
   return (
     <div className="bg-brand-black min-h-screen text-white font-sans">
       {user ? (
-        user.role === 'ROLE_MENTOR' ? (
+        user.role === 'MENTOR' || user.role === 'ROLE_MENTOR'? (
           <MentorDashboard
             user={user}
             onLogout={handleLogout}

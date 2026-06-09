@@ -13,8 +13,71 @@ export default function LandingPage({ onLoginSuccess }) {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', idea: '' });  
   const [registerSuccess, setRegisterSuccess] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(false); // false = Register, true = Login
+  
 
+const [isExpertModalOpen, setIsExpertModalOpen] = useState(false);
+const [expertRegisterSuccess, setExpertRegisterSuccess] = useState(false);
 
+const [mentorFormData, setMentorFormData] = useState({
+  name: '',
+  email: '',
+  password: '',
+  title: '',
+  expertise: '',
+  bio: '',
+  linkedinUrl: '',
+  imageUrl: ''
+});
+
+const handleMentorSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    const response = await fetch("http://localhost:8080/api/mentors/register-full", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(mentorFormData),
+    });
+
+    if (!response.ok) {
+      const errorMsg = await response.text();
+      alert(errorMsg || "Erreur lors de l'inscription mentor.");
+      return;
+    }
+
+    const userData = await response.json();
+
+    localStorage.setItem("user", JSON.stringify(userData));
+
+    setExpertRegisterSuccess(true);
+
+    setTimeout(() => {
+      setIsExpertModalOpen(false);
+      setExpertRegisterSuccess(false);
+
+      setMentorFormData({
+        name: '',
+        email: '',
+        password: '',
+        title: '',
+        expertise: '',
+        bio: '',
+        linkedinUrl: '',
+        imageUrl: ''
+      });
+
+      if (onLoginSuccess) {
+        onLoginSuccess(userData);
+      }
+    }, 2000);
+
+  } catch (error) {
+    console.error("Erreur inscription mentor:", error);
+    alert("Impossible de joindre l'API d'inscription mentor.");
+  }
+};
   // Handles the floating AI Assistant chat simulation
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -128,6 +191,13 @@ export default function LandingPage({ onLoginSuccess }) {
               >
               Se connecter
             </button>
+            <button
+  type="button"
+  onClick={() => setIsExpertModalOpen(true)}
+  className="w-full sm:w-auto px-5 py-2.5 bg-gold-100 hover:bg-purple-500 text-white font-semibold rounded-lg transition-all text-sm shadow-md shadow-purple-500/10"
+>
+  Join us as expert
+</button>
           </div>
         </div>
       </header>
@@ -558,6 +628,130 @@ export default function LandingPage({ onLoginSuccess }) {
               {isLoginMode ? "Créer un compte" : "Se connecter"}
             </button>
           </p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* ─── EXPERT / MENTOR REGISTRATION MODAL ─── */}
+{isExpertModalOpen && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div 
+      className="absolute inset-0 bg-brand-black/80 backdrop-blur-sm" 
+      onClick={() => setIsExpertModalOpen(false)}
+    ></div>
+
+    <div className="bg-brand-darkGray border border-purple-500/30 rounded-3xl w-full max-w-2xl p-8 relative z-10 max-h-[90vh] overflow-y-auto">
+      <button 
+        type="button" 
+        onClick={() => setIsExpertModalOpen(false)} 
+        className="absolute top-4 right-4 text-gray-400 hover:text-white"
+      >
+        <i className="fa-solid fa-xmark"></i>
+      </button>
+
+      {expertRegisterSuccess ? (
+        <div className="text-center py-8">
+          <i className="fa-solid fa-circle-check text-purple-400 text-5xl mb-4"></i>
+          <h3 className="text-2xl font-bold text-white">
+            Expert profile created!
+          </h3>
+          <p className="text-gray-400 text-sm mt-2">
+            Your mentor account has been created successfully.
+          </p>
+        </div>
+      ) : (
+        <div>
+          <div className="mb-6">
+            <span className="text-xs text-purple-400 font-bold uppercase tracking-widest">
+              Expert Application
+            </span>
+            <h3 className="text-2xl font-bold text-white mt-2">
+              Join Triple S as an expert mentor
+            </h3>
+            <p className="text-gray-400 text-sm mt-2">
+              Create your mentor profile and help Moroccan entrepreneurs structure and grow their projects.
+            </p>
+          </div>
+
+          <form onSubmit={handleMentorSubmit} className="space-y-4">
+            <input
+              type="text"
+              required
+              placeholder="Full name"
+              className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50"
+              value={mentorFormData.name}
+              onChange={(e) => setMentorFormData({ ...mentorFormData, name: e.target.value })}
+            />
+
+            <input
+              type="email"
+              required
+              placeholder="Email"
+              className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50"
+              value={mentorFormData.email}
+              onChange={(e) => setMentorFormData({ ...mentorFormData, email: e.target.value })}
+            />
+
+            <input
+              type="password"
+              required
+              placeholder="Password"
+              className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50"
+              value={mentorFormData.password}
+              onChange={(e) => setMentorFormData({ ...mentorFormData, password: e.target.value })}
+            />
+
+            <input
+              type="text"
+              required
+              placeholder="Professional title, e.g. Startup Mentor, Finance Expert..."
+              className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50"
+              value={mentorFormData.title}
+              onChange={(e) => setMentorFormData({ ...mentorFormData, title: e.target.value })}
+            />
+
+            <input
+              type="text"
+              required
+              placeholder="Expertise, e.g. Funding, Growth, Pitch Deck, Legal..."
+              className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50"
+              value={mentorFormData.expertise}
+              onChange={(e) => setMentorFormData({ ...mentorFormData, expertise: e.target.value })}
+            />
+
+            <textarea
+              rows="4"
+              required
+              placeholder="Short bio"
+              className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50 resize-none"
+              value={mentorFormData.bio}
+              onChange={(e) => setMentorFormData({ ...mentorFormData, bio: e.target.value })}
+            ></textarea>
+
+            <input
+              type="url"
+              placeholder="LinkedIn URL"
+              className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50"
+              value={mentorFormData.linkedinUrl}
+              onChange={(e) => setMentorFormData({ ...mentorFormData, linkedinUrl: e.target.value })}
+            />
+
+            <input
+              type="url"
+              placeholder="Profile image URL optional"
+              className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50"
+              value={mentorFormData.imageUrl}
+              onChange={(e) => setMentorFormData({ ...mentorFormData, imageUrl: e.target.value })}
+            />
+
+            <button
+              type="submit"
+              className="w-full py-3.5 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-500 transition-all text-sm"
+            >
+              Create expert account
+            </button>
+          </form>
         </div>
       )}
     </div>
