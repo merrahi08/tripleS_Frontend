@@ -180,7 +180,7 @@ const handleMentorSubmit = async (e) => {
               onClick={() => { setSelectedTier('Gratuit'); setIsModalOpen(true); }}
               className="bg-brand-lightGold hover:bg-brand-hoverGold text-brand-black font-semibold px-5 py-2.5 rounded-lg transition-all text-sm shadow-md shadow-brand-gold/10"
             >
-              Rejoindre
+              Rejoindre,
             </button>
             <button 
              onClick={() => {
@@ -717,7 +717,7 @@ const handleMentorSubmit = async (e) => {
               placeholder="Expertise, e.g. Funding, Growth, Pitch Deck, Legal..."
               className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50"
               value={mentorFormData.expertise}
-              onChange={(e) => setMentorFormData({ ...mentorFormData, expertise: e.target.value })}
+              onChange={(e) => set({ ...mentorFormData, expertise: e.target.value })}
             />
 
             <textarea

@@ -39,7 +39,7 @@ export default function MentorDashboard({ user, onLogout }) {
       });
 
     // 2. Fetch Pending Incubation Demands using the precise Mentor User ID endpoint
-    fetch(`http://localhost:8080/api/requests/pending?userId=${user.id}`)
+    fetch(`http://localhost:8080/api/requests/mentor/${user.id}/pending`)
       .then((response) => {
         if (!response.ok) throw new Error("Could not fetch pending demands");
         return response.json();
@@ -148,7 +148,7 @@ export default function MentorDashboard({ user, onLogout }) {
   // 🤝 Action handler to claim an incoming request and store it in the database
   const handleClaimRequest = async (requestId) => {
     const targetRequest = pendingRequests.find(r => r.id === requestId);
-    if (!targetRequest || !targetRequest.mentorId) {
+    if (!targetRequest) {
       alert("Impossible de déterminer l'identifiant du mentor pour cette requête.");
       return;
     }
@@ -156,12 +156,12 @@ export default function MentorDashboard({ user, onLogout }) {
     try {
       setClaimingId(requestId);
       
-      const response = await fetch(`http://localhost:8080/api/requests/${requestId}/claim?mentorId=${targetRequest.mentorId}`, {
+      const response = await fetch(`http://localhost:8080/api/requests/${requestId}/claim`, {
         method: "PUT",
         headers: { "Accept": "application/json" }
       });
 
-      if (!response.ok) throw new Error("Erreur serveur lors de l'acceptation de la demande.");
+      if (!response.ok) throw new Error("This request has already been claimed.");
 
       const updatedRequest = await response.json();
       alert(`🎉 Succès! La demande N°${updatedRequest.id} a été acceptée.`);

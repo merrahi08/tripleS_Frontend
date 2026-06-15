@@ -43,24 +43,27 @@ export default function Dashboard({ user, onUpdateUser, onLogout }) {
   const chatEndRef = useRef(null);
 
   // Fetch the current user's incubation requests
-  const fetchUserRequests = async () => {
-    try {
-      setLoadingRequests(true);
-      const response = await fetch("http://localhost:8080/api/requests/open", {
-        method: "GET",
-        headers: { "Accept": "application/json" },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const filtered = data.filter(req => req.userId === user.id);
-        setUserRequests(filtered);
-      }
-    } catch (error) {
-      console.error("Error fetching user requests:", error);
-    } finally {
-      setLoadingRequests(false);
+const fetchUserRequests = async () => {
+  try {
+    setLoadingRequests(true);
+
+    const response = await fetch(
+      `http://localhost:8080/api/requests/${user.id}/pending`
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch requests");
     }
-  };
+
+    const data = await response.json();
+
+    setUserRequests(data);
+  } catch (error) {
+    console.error("Error fetching requests:", error);
+  } finally {
+    setLoadingRequests(false);
+  }
+};
 
   // ─── FETCH ASSIGNED MENTORS (JOIN FETCH OPTIMIZED) ───
   const fetchAssignedMentors = async () => {
@@ -353,18 +356,25 @@ useEffect(() => {
             </h1>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="px-3 py-1 bg-brand-gold/10 text-brand-lightGold border border-brand-gold/20 text-xs font-bold rounded-full uppercase tracking-wider">
-              Plan {currentTier}
-            </span>
+         <div className="flex items-center gap-3">
+  <span className="px-3 py-1 bg-brand-gold/10 text-brand-lightGold border border-brand-gold/20 text-xs font-bold rounded-full uppercase tracking-wider">
+    Plan {currentTier}
+  </span>
 
-            <button
-              onClick={onLogout}
-              className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white px-3 py-1.5 rounded-lg transition-all"
-            >
-              Déconnexion
-            </button>
-          </div>
+  <button
+    onClick={() => setIsModalOpen(true)}
+    className="px-4 py-2 bg-brand-gold hover:bg-yellow-500 text-black text-xs font-bold rounded-xl transition-all shadow-lg"
+  >
+    Changer le plan
+  </button>
+
+  <button
+    onClick={onLogout}
+    className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white px-3 py-2 rounded-lg transition-all"
+  >
+    Déconnexion
+  </button>
+</div>
         </header>
 
         {/* ─── MAIN CONTENT GRID ─── */}
@@ -747,31 +757,73 @@ useEffect(() => {
             </div>
 
             {/* INCUBATION STATUS */}
-            <div className="bg-brand-darkGray/40 border border-white/5 rounded-2xl p-6">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
-                Statut Incubation
-              </h3>
+           <div className="bg-brand-darkGray/40 border border-white/5 rounded-2xl p-6">
+  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
+    Statut Incubation
+  </h3>
 
-              <div className="space-y-3 text-sm text-gray-300">
-                <div className="flex justify-between items-center bg-black/20 p-2.5 border border-white/5 rounded-xl">
-                  <span className="text-xs text-gray-400">Dossier de Plan</span>
-                  <span className="text-xs font-semibold text-brand-gold">En cours de structure</span>
-                </div>
-                <div className="flex justify-between items-center bg-black/20 p-2.5 border border-white/5 rounded-xl">
-                  <span className="text-xs text-gray-400">Validation Mentor</span>
-                  <span className="text-xs font-semibold text-amber-400">En attente</span>
-                </div>
-              </div>
+  {userRequests.some(req => req.status === "PENDING") ? (
+    <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+      <span className="text-xs text-gray-300">
+        Demande d'accompagnement
+      </span>
+      <span className="text-xs font-bold text-amber-400 uppercase">
+        En attente
+      </span>
+    </div>
+  ) : (
+    <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
+      <span className="text-xs text-gray-300">
+        Demande d'accompagnement
+      </span>
+      <span className="text-xs font-bold text-emerald-400 uppercase">
+        Aucune en attente
+      </span>
+    </div>
+  )}
+</div>
+            <div className="bg-gradient-to-br from-brand-gold/10 to-yellow-500/5 border border-brand-gold/20 rounded-2xl p-6">
+  <div className="flex items-center justify-between mb-3">
+    <h3 className="text-sm font-bold text-brand-lightGold uppercase tracking-wider">
+      Votre formule
+    </h3>
 
-              {currentTier !== 'PREMIUM' && (
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="w-full mt-4 py-2 bg-gradient-to-r from-brand-gold to-yellow-600 hover:from-yellow-500 hover:to-brand-gold text-black font-bold text-xs rounded-xl transition-all shadow-lg"
-                >
-                  🚀 Booster mon incubation
-                </button>
-              )}
-            </div>
+    <span className="text-[10px] px-2 py-1 rounded-full bg-brand-gold/10 border border-brand-gold/20 text-brand-lightGold font-bold">
+      {currentTier}
+    </span>
+  </div>
+
+  <p className="text-xs text-gray-400 leading-relaxed">
+    Débloquez davantage d'outils, l'assistant IA avancé et
+    l'accompagnement personnalisé avec nos formules supérieures.
+  </p>
+
+  {currentTier === "GRATUIT" && (
+    <button
+      onClick={() => setIsModalOpen(true)}
+      className="w-full mt-4 py-3 bg-brand-gold hover:bg-yellow-500 text-black font-bold text-xs rounded-xl transition-all"
+    >
+      🚀 Passer à Standard
+    </button>
+  )}
+
+  {currentTier === "STANDARD" && (
+    <button
+      onClick={() => setIsModalOpen(true)}
+      className="w-full mt-4 py-3 bg-brand-gold hover:bg-yellow-500 text-black font-bold text-xs rounded-xl transition-all"
+    >
+      ⭐ Passer Premium
+    </button>
+  )}
+
+  {currentTier === "PREMIUM" && (
+    <div className="mt-4 py-3 text-center bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+      <span className="text-xs font-bold text-emerald-400">
+        ✓ Vous utilisez la meilleure formule
+      </span>
+    </div>
+  )}
+</div>
           </div>
         </main>
       </div>
@@ -782,62 +834,126 @@ useEffect(() => {
       </footer>
 
       {/* MODAL 1: FORMULES */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
-          <div className="bg-zinc-900 border border-white/10 p-6 rounded-2xl max-w-md w-full space-y-4 animate-fadeIn">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-serif font-bold text-brand-lightGold">Choisir une formule</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white text-sm">✕</button>
-            </div>
-            <p className="text-xs text-gray-400">Maximisez vos chances de réussite avec nos outils avancés.</p>
-            
-            <div className="space-y-3">
-              <div className="p-3 bg-white/5 border border-white/5 rounded-xl flex justify-between items-center">
-                <div>
-                  <h4 className="text-xs font-bold text-white">GRATUIT</h4>
-                  <p className="text-[10px] text-gray-400">Lean Canvas & Ressources de base</p>
-                </div>
-                <button 
-                  onClick={() => handleSelectPlan('GRATUIT')}
-                  disabled={currentTier === 'GRATUIT'}
-                  className="px-3 py-1 bg-zinc-700 text-white text-[11px] font-bold rounded-lg disabled:opacity-40"
-                >
-                  {currentTier === 'GRATUIT' ? 'Actuel' : 'Sélectionner'}
-                </button>
-              </div>
+{isModalOpen && (
+  <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
+    {/* Main Container */}
+    <div className="bg-zinc-900 border border-white/10 p-8 rounded-2xl max-w-7xl w-full space-y-6 animate-fadeIn relative">
+      
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8">
+        <h3 className="text-3xl font-serif font-bold text-white">Choisir une formule</h3>
+        <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white text-2xl p-2">✕</button>
+      </div>
 
-              <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl flex justify-between items-center">
-                <div>
-                  <h4 className="text-xs font-bold text-purple-400">STANDARD</h4>
-                  <p className="text-[10px] text-gray-400">Audit IA instantané illimité</p>
-                </div>
-                <button 
-                  onClick={() => handleSelectPlan('STANDARD')}
-                  disabled={currentTier === 'STANDARD'}
-                  className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold rounded-lg disabled:opacity-40"
-                >
-                  {currentTier === 'STANDARD' ? 'Actuel' : 'Choisir'}
-                </button>
-              </div>
-
-              <div className="p-3 bg-brand-gold/10 border border-brand-gold/20 rounded-xl flex justify-between items-center">
-                <div>
-                  <h4 className="text-xs font-bold text-brand-lightGold">PREMIUM</h4>
-                  <p className="text-[10px] text-gray-400">Réseau privé de mentors & Direct Chat</p>
-                </div>
-                <button 
-                  onClick={() => handleSelectPlan('PREMIUM')}
-                  disabled={currentTier === 'PREMIUM'}
-                  className="px-3 py-1 bg-brand-gold text-black text-[11px] font-bold rounded-lg disabled:opacity-40"
-                >
-                  Choisir
-                </button>
-              </div>
+      {/* Pricing Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+        
+        {/* GRATUIT */}
+        <div className="bg-black/20 p-8 rounded-3xl border border-white/5 space-y-8 flex flex-col justify-between">
+          <div>
+            <h4 className="text-4xl font-serif font-bold text-white mb-3">Gratuit</h4>
+            <p className="text-sm text-gray-400 mb-10">Accès limité pour découvrir la plateforme.</p>
+            <div className="flex items-end text-white mb-10">
+              <span className="text-6xl font-bold">0</span>
+              <span className="text-xl font-medium text-gray-500 pb-2 ml-2">MAD</span>
             </div>
+            <ul className="space-y-4 text-sm text-gray-300">
+              <li className="flex items-center gap-2">✓ Contenu de base</li>
+              <li className="flex items-center gap-2">✓ Lean Canvas guidé</li>
+              <li className="flex items-center gap-2">✓ Communauté entrepreneurs</li>
+            </ul>
+          </div>
+          <button onClick={() => handleSelectPlan('GRATUIT')} disabled={currentTier === 'GRATUIT'} className="w-full py-4 bg-white text-black text-sm font-bold rounded-xl hover:bg-gray-200 transition disabled:opacity-40">
+            {currentTier === 'GRATUIT' ? 'Plan Actuel' : 'Commencer gratuitement'}
+          </button>
+        </div>
+
+        {/* STANDARD */}
+        <div className="bg-black/20 p-8 rounded-3xl border border-white/5 space-y-8 flex flex-col justify-between">
+          <div>
+            <h4 className="text-4xl font-serif font-bold text-white mb-3">Standard</h4>
+            <p className="text-sm text-gray-400 mb-10">Contenu et outils pour avancer sereinement.</p>
+            <div className="flex items-end text-white mb-10">
+              <span className="text-6xl font-bold">150</span>
+              <span className="text-xl font-medium text-gray-500 pb-2 ml-2">MAD/mois</span>
+            </div>
+            <ul className="space-y-4 text-sm text-gray-300">
+              <li className="flex items-center gap-2">✓ Tout du gratuit</li>
+              <li className="flex items-center gap-2">✓ Contenu digital complet</li>
+              <li className="flex items-center gap-2">✓ Outils & templates</li>
+              <li className="flex items-center gap-2">✓ Tableau de bord projet</li>
+            </ul>
+          </div>
+          <button onClick={() => handleSelectPlan('STANDARD')} disabled={currentTier === 'STANDARD'} className="w-full py-4 bg-white text-black text-sm font-bold rounded-xl hover:bg-gray-200 transition disabled:opacity-40">
+            {currentTier === 'STANDARD' ? 'Plan Actuel' : 'Choisir Standard'}
+          </button>
+        </div>
+
+        {/* PREMIUM */}
+        <div className="bg-black/20 p-8 rounded-3xl border-2 border-brand-gold space-y-8 flex flex-col justify-between relative">
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-gold text-black text-xs font-bold px-4 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
+            <span>☆</span> Le plus populaire
+          </div>
+          <div>
+            <h4 className="text-4xl font-serif font-bold text-white mb-3">Premium</h4>
+            <p className="text-sm text-gray-400 mb-10">IA + mentorat + consulting expert.</p>
+            <div className="flex items-end text-white mb-10">
+              <span className="text-6xl font-bold">300</span>
+              <span className="text-xl font-medium text-gray-500 pb-2 ml-2">MAD/mois</span>
+            </div>
+            <ul className="space-y-4 text-sm text-gray-300">
+              <li className="flex items-center gap-2 text-brand-lightGold">✓ Tout de Standard</li>
+              <li className="flex items-center gap-2 text-brand-lightGold">✓ Assistant IA illimité</li>
+              <li className="flex items-center gap-2 text-brand-lightGold">✓ Mentorat experts</li>
+              <li className="flex items-center gap-2 text-brand-lightGold">✓ Consulting personnalisé</li>
+              <li className="flex items-center gap-2 text-brand-lightGold">✓ Dossier financement</li>
+            </ul>
+          </div>
+          <button onClick={() => handleSelectPlan('PREMIUM')} disabled={currentTier === 'PREMIUM'} className="w-full py-4 bg-brand-gold text-black text-sm font-bold rounded-xl hover:bg-brand-lightGold transition disabled:opacity-40">
+            {currentTier === 'PREMIUM' ? 'Plan Actuel' : 'Choisir Premium'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* MODAL 2: PAIEMENT SÉCURISÉ */}
+{isPaymentOpen && (
+  <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 p-4">
+    <div className="bg-zinc-900 border border-white/10 p-6 rounded-2xl max-w-md w-full relative">
+      <button onClick={() => { setIsPaymentOpen(false); setIsModalOpen(true); }} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xs bg-white/5 px-2 py-1 rounded">
+        ← Retour
+      </button>
+      <h3 className="text-lg font-bold font-serif mb-1">Passerelle de Paiement Sécurisée</h3>
+      <p className="text-xs text-gray-400 mb-6">Formule ciblée : <span className="text-brand-gold font-bold uppercase">{targetTier}</span></p>
+      
+      <form onSubmit={handleFakeSubmitPayment} className="space-y-4">
+        <div>
+          <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Nom du titulaire</label>
+          <input type="text" defaultValue={user.name} className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-xs text-gray-300 focus:outline-none" required />
+        </div>
+        <div>
+          <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Numéro de carte</label>
+          <input type="text" placeholder="4242 4242 4242 4242" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-xs text-gray-100 focus:outline-none" required />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Date expiration</label>
+            <input type="text" placeholder="MM/YY" value={expiry} onChange={(e) => setExpiry(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-xs text-center focus:outline-none" required />
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1">CVC / CVV</label>
+            <input type="text" placeholder="123" value={cvv} onChange={(e) => setCvv(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-xs text-center focus:outline-none" required />
           </div>
         </div>
-      )}
-
+        <button type="submit" disabled={updating} className="w-full mt-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all">
+          {updating ? "🔒 Traitement..." : "Confirmer le règlement"}
+        </button>
+      </form>
+    </div>
+  </div>
+)}
       {/* MODAL 2: PAIEMENT SÉCURISÉ */}
       {isPaymentOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 p-4">
