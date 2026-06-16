@@ -36,11 +36,15 @@ export default function Dashboard({ user, onUpdateUser, onLogout }) {
   // ─── ASSIGNED MENTOR & LIVE CHAT STATES ───
   const [assignedMentors, setAssignedMentors] = useState([]);
   const [loadingAssigned, setLoadingAssigned] = useState(false);
+  const [activeMentorId, setActiveMentorId] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   
   // Réf pour scroller automatiquement en bas du chat lors d'un nouveau message
   const chatEndRef = useRef(null);
+
+  // Le mentor actuellement sélectionné dans l'onglet de discussion
+  const activeMentor = assignedMentors.find((m) => m.id === activeMentorId) || null;
 
   // Fetch the current user's incubation requests
 const fetchUserRequests = async () => {
@@ -103,20 +107,44 @@ const fetchUserRequests = async () => {
     fetchAssignedMentors();
   }, [user.id]);
 
+  // ─── SÉLECTION DE L'ONGLET MENTOR ACTIF PAR DÉFAUT ───
+  // Dès que la liste des mentors assignés arrive (ou change), on s'assure
+  // qu'un onglet est toujours sélectionné. Si le mentor actif n'existe plus
+  // dans la liste (désassigné), on retombe sur le premier disponible.
+  useEffect(() => {
+    if (assignedMentors.length === 0) {
+      setActiveMentorId(null);
+      return;
+    }
+
+    const stillAssigned = assignedMentors.some((m) => m.id === activeMentorId);
+    if (!activeMentorId || !stillAssigned) {
+      setActiveMentorId(assignedMentors[0].id);
+    }
+  }, [assignedMentors]);
+
   // ─── SYSTEM DE POLLING LÉGER (Toutes les 5 secondes) ───
+  // Dépend de l'onglet mentor actif : changer d'onglet recharge
+  // immédiatement la bonne conversation au lieu de rester bloqué sur la 1ère.
 useEffect(() => {
-  if (assignedMentors.length === 0) return;
-
-  const mentorUserId =
-    assignedMentors[0].user?.id ||
-    assignedMentors[0].userId ||
-    assignedMentors[0].user_id;
-
-  if (!mentorUserId) {
-    console.error("Mentor userId is missing:", assignedMentors[0]);
+  if (!activeMentor) {
+    setChatMessages([]);
     return;
   }
 
+  const mentorUserId =
+    activeMentor.user?.id ||
+    activeMentor.userId ||
+    activeMentor.user_id;
+
+  if (!mentorUserId) {
+    console.error("Mentor userId is missing:", activeMentor);
+    return;
+  }
+
+  // On vide l'affichage pour ne pas montrer un instant les messages
+  // de l'onglet précédent pendant le chargement du nouveau.
+  setChatMessages([]);
   fetchChatMessages(mentorUserId);
 
   const interval = setInterval(() => {
@@ -124,7 +152,7 @@ useEffect(() => {
   }, 5000);
 
   return () => clearInterval(interval);
-}, [assignedMentors]);
+}, [activeMentorId]);
 
   // Scroll automatique au bas du chat à chaque mise à jour des messages
 useEffect(() => {
@@ -220,11 +248,11 @@ useEffect(() => {
   // ─── ACTION : ENVOYER UN MESSAGE DE CHAT EN DIRECT EN BD ───
   const handleSendLiveChatMessage = async (e) => {
   e.preventDefault();
-  if (!chatInput.trim() || assignedMentors.length === 0) return;
+  if (!chatInput.trim() || !activeMentor) return;
 
   // This is the mentor table ID, not the mentor user ID.
   // Backend will convert mentorId -> mentor.getUser().getId()
-  const mentorId = assignedMentors[0].id;
+  const mentorId = activeMentor.id;
 
   const messagePayload = {
     senderId: user.id,
@@ -383,78 +411,110 @@ useEffect(() => {
           {/* LEFT/CENTER COLUMN */}
           <div className="lg:col-span-2 space-y-6">
 
-            {/* 1. MODULE: ASSIGNED MENTOR & MESSAGERIE DIRECTE ACTIVÉE */}
+            {/* 1. MODULE: ASSIGNED MENTOR(S) & MESSAGERIE DIRECTE ACTIVÉE */}
             <div className="bg-brand-darkGray/40 border border-white/5 rounded-2xl p-6 space-y-4">
-              <h3 className="text-sm font-bold text-brand-lightGold uppercase tracking-wider">
-                🤝 Votre Accompagnement & Messagerie Directe
-              </h3>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="text-sm font-bold text-brand-lightGold uppercase tracking-wider">
+                  🤝 Votre Accompagnement & Messagerie Directe
+                </h3>
+                {assignedMentors.length > 1 && (
+                  <span className="text-[10px] text-gray-500">
+                    {assignedMentors.length} mentors assignés
+                  </span>
+                )}
+              </div>
               
               {loadingAssigned ? (
                 <p className="text-xs text-gray-500">Recherche de vos assignations...</p>
               ) : assignedMentors.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  
-                  {/* Card Détails Mentor */}
-                  <div className="md:col-span-2 p-4 bg-black/40 border border-white/5 rounded-xl flex flex-col justify-between">
-                    <div>
-                      <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 uppercase">
-                        Mentor Connecté
-                      </span>
-                      <h4 className="text-sm font-bold text-white mt-2">
-                        {assignedMentors[0].name || assignedMentors[0].user?.name || "Mentor Expert"}
-                      </h4>
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        {assignedMentors[0].role || assignedMentors[0].speciality || "Conseiller Incubateur"}
-                      </p>
-                      <p className="text-[10px] text-zinc-500 mt-2 italic line-clamp-3">
-                        {assignedMentors[0].expertise || "Expert en accompagnement de projets tripleS."}
-                      </p>
-                    </div>
-                    <div className="text-[10px] text-gray-500 pt-2 border-t border-white/5 mt-2">
-                      ID Système : #{assignedMentors[0].id}
-                    </div>
-                  </div>
+                <div className="space-y-3">
 
-                  {/* Panel Chat Réel Connecté au Backend */}
-                  <div className="md:col-span-3 bg-black/50 border border-white/5 rounded-xl flex flex-col h-52 justify-between">
-                    <div className="p-3 overflow-y-auto space-y-2 flex-1 max-h-[160px] text-xs">
-                      {chatMessages.length === 0 ? (
-                        <p className="text-zinc-600 text-center text-[11px] mt-6 italic">
-                          Aucun message dans cette discussion. Lancez le premier mot !
+                  {/* Onglets mentors — affichés uniquement si plusieurs mentors sont assignés */}
+                  {assignedMentors.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {assignedMentors.map((m) => {
+                        const isActive = m.id === activeMentorId;
+                        const mName = m.name || m.user?.name || `Mentor #${m.id}`;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setActiveMentorId(m.id)}
+                            className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all ${
+                              isActive
+                                ? "bg-purple-600 border-purple-500 text-white"
+                                : "bg-black/30 border-white/10 text-gray-400 hover:text-white hover:border-white/20"
+                            }`}
+                          >
+                            {mName}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    
+                    {/* Card Détails Mentor (mentor actif) */}
+                    <div className="md:col-span-2 p-4 bg-black/40 border border-white/5 rounded-xl flex flex-col justify-between">
+                      <div>
+                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 uppercase">
+                          Mentor Connecté
+                        </span>
+                        <h4 className="text-sm font-bold text-white mt-2">
+                          {activeMentor?.name || activeMentor?.user?.name || "Mentor Expert"}
+                        </h4>
+                        <p className="text-[11px] text-gray-400 mt-1">
+                          {activeMentor?.role || activeMentor?.speciality || "Conseiller Incubateur"}
                         </p>
-                      ) : (
-                        chatMessages.map((msg) => {
-                          const isMe = msg.senderId === user.id;
-                          return (
-                            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-[11px] ${
-                                isMe ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-gray-200'
-                              }`}>
-                                <p>{msg.content}</p>
-                                <span className="block text-[8px] text-zinc-400 text-right mt-0.5">
-                                  {formatTime(msg.timestamp)}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                      {/* Ancre invisible pour forcer le scroll vers le bas */}
-                      <div ref={chatEndRef} />
+                        <p className="text-[10px] text-zinc-500 mt-2 italic line-clamp-3">
+                          {activeMentor?.expertise || "Expert en accompagnement de projets tripleS."}
+                        </p>
+                      </div>
+                      <div className="text-[10px] text-gray-500 pt-2 border-t border-white/5 mt-2">
+                        ID Système : #{activeMentor?.id}
+                      </div>
                     </div>
 
-                    <form onSubmit={handleSendLiveChatMessage} className="p-2 border-t border-white/5 bg-zinc-900/50 flex gap-2 rounded-b-xl">
-                      <input 
-                        type="text"
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        placeholder="Écrivez un message à votre mentor..."
-                        className="flex-1 bg-black/40 border border-white/10 rounded-md px-3 py-1 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
-                      />
-                      <button type="submit" className="px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-bold transition-all">
-                        Envoyer
-                      </button>
-                    </form>
+                    {/* Panel Chat Réel Connecté au Backend (thread du mentor actif) */}
+                    <div className="md:col-span-3 bg-black/50 border border-white/5 rounded-xl flex flex-col h-52 justify-between">
+                      <div className="p-3 overflow-y-auto space-y-2 flex-1 max-h-[160px] text-xs" ref={chatEndRef}>
+                        {chatMessages.length === 0 ? (
+                          <p className="text-zinc-600 text-center text-[11px] mt-6 italic">
+                            Aucun message dans cette discussion. Lancez le premier mot !
+                          </p>
+                        ) : (
+                          chatMessages.map((msg) => {
+                            const isMe = msg.senderId === user.id;
+                            return (
+                              <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-[11px] ${
+                                  isMe ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-gray-200'
+                                }`}>
+                                  <p>{msg.content}</p>
+                                  <span className="block text-[8px] text-zinc-400 text-right mt-0.5">
+                                    {formatTime(msg.timestamp)}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      <form onSubmit={handleSendLiveChatMessage} className="p-2 border-t border-white/5 bg-zinc-900/50 flex gap-2 rounded-b-xl">
+                        <input 
+                          type="text"
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          placeholder="Écrivez un message à votre mentor..."
+                          className="flex-1 bg-black/40 border border-white/10 rounded-md px-3 py-1 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
+                        />
+                        <button type="submit" className="px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-bold transition-all">
+                          Envoyer
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -517,7 +577,7 @@ useEffect(() => {
                             ? "🧑 You: "
                             : message.role === "error"
                             ? "⚠️ Error: "
-                            : "🤖 IA Co-Pilot: "}
+                            : "🤖: "}
                         </strong>
                         {message.content}
                       </div>
@@ -919,42 +979,6 @@ useEffect(() => {
 )}
 
 {/* MODAL 2: PAIEMENT SÉCURISÉ */}
-{isPaymentOpen && (
-  <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 p-4">
-    <div className="bg-zinc-900 border border-white/10 p-6 rounded-2xl max-w-md w-full relative">
-      <button onClick={() => { setIsPaymentOpen(false); setIsModalOpen(true); }} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xs bg-white/5 px-2 py-1 rounded">
-        ← Retour
-      </button>
-      <h3 className="text-lg font-bold font-serif mb-1">Passerelle de Paiement Sécurisée</h3>
-      <p className="text-xs text-gray-400 mb-6">Formule ciblée : <span className="text-brand-gold font-bold uppercase">{targetTier}</span></p>
-      
-      <form onSubmit={handleFakeSubmitPayment} className="space-y-4">
-        <div>
-          <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Nom du titulaire</label>
-          <input type="text" defaultValue={user.name} className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-xs text-gray-300 focus:outline-none" required />
-        </div>
-        <div>
-          <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Numéro de carte</label>
-          <input type="text" placeholder="4242 4242 4242 4242" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-xs text-gray-100 focus:outline-none" required />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Date expiration</label>
-            <input type="text" placeholder="MM/YY" value={expiry} onChange={(e) => setExpiry(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-xs text-center focus:outline-none" required />
-          </div>
-          <div>
-            <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1">CVC / CVV</label>
-            <input type="text" placeholder="123" value={cvv} onChange={(e) => setCvv(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-xs text-center focus:outline-none" required />
-          </div>
-        </div>
-        <button type="submit" disabled={updating} className="w-full mt-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all">
-          {updating ? "🔒 Traitement..." : "Confirmer le règlement"}
-        </button>
-      </form>
-    </div>
-  </div>
-)}
-      {/* MODAL 2: PAIEMENT SÉCURISÉ */}
       {isPaymentOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 border border-white/10 p-6 rounded-2xl max-w-md w-full relative">
