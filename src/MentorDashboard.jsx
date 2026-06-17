@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { API_URL } from "./config";
 
 export default function MentorDashboard({ user, onLogout }) {
   const [assignedClients, setAssignedClients] = useState([]);
@@ -24,7 +25,7 @@ export default function MentorDashboard({ user, onLogout }) {
     setLoadingRequests(true);
 
     // 1. Fetch Assigned Active Clients (Maps User ID to Mentor Table underneath)
-    fetch(`http://localhost:8080/api/mentors/clients?userId=${user.id}`)
+    fetch(`${API_URL}/api/mentors/clients?userId=${user.id}`)
       .then((response) => {
         if (!response.ok) throw new Error("Network response was not ok");
         return response.json();
@@ -39,7 +40,7 @@ export default function MentorDashboard({ user, onLogout }) {
       });
 
     // 2. Fetch Pending Incubation Demands using the precise Mentor User ID endpoint
-    fetch(`http://localhost:8080/api/requests/mentor/${user.id}/pending`)
+    fetch(`${API_URL}/api/requests/mentor/${user.id}/pending`)
       .then((response) => {
         if (!response.ok) throw new Error("Could not fetch pending demands");
         return response.json();
@@ -58,7 +59,7 @@ export default function MentorDashboard({ user, onLogout }) {
   // ─── FONCTION POUR RECUPERER LES MESSAGES DU CLIENT ACTIF ───
   const fetchChatMessages = async (clientId) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/messages/conversation?user1=${user.id}&user2=${clientId}`);
+      const response = await fetch(`${API_URL}/api/messages/conversation?user1=${user.id}&user2=${clientId}`);
       if (response.ok) {
         const data = await response.json();
         setChatMessages(data);
@@ -72,7 +73,7 @@ export default function MentorDashboard({ user, onLogout }) {
   const fetchLastConversationsSummary = async () => {
     if (!user || !user.id) return;
     try {
-      const response = await fetch(`http://localhost:8080/api/messages/last-conversations?userId=${user.id}`);
+      const response = await fetch(`${API_URL}/api/messages/last-conversations?userId=${user.id}`);
       if (response.ok) {
         const data = await response.json();
         setLastConversationsSummary(data);
@@ -128,7 +129,7 @@ export default function MentorDashboard({ user, onLogout }) {
     };
 
     try {
-      const response = await fetch("http://localhost:8080/api/messages/send", {
+      const response = await fetch(`${API_URL}/api/messages/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(messagePayload)
@@ -156,7 +157,7 @@ export default function MentorDashboard({ user, onLogout }) {
     try {
       setClaimingId(requestId);
       
-      const response = await fetch(`http://localhost:8080/api/requests/${requestId}/claim`, {
+      const response = await fetch(`${API_URL}/api/requests/${requestId}/claim`, {
         method: "PUT",
         headers: { "Accept": "application/json" }
       });
@@ -169,7 +170,7 @@ export default function MentorDashboard({ user, onLogout }) {
       setPendingRequests(prev => prev.filter(req => req.id !== requestId));
       
       setLoading(true);
-      fetch(`http://localhost:8080/api/mentors/clients?userId=${user.id}`)
+      fetch(`${API_URL}/api/mentors/clients?userId=${user.id}`)
         .then((res) => {
           if (!res.ok) throw new Error();
           return res.json();

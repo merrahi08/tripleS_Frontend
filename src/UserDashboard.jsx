@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { API_URL } from "./config";
 
 export default function Dashboard({ user, onUpdateUser, onLogout }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,7 +53,7 @@ const fetchUserRequests = async () => {
     setLoadingRequests(true);
 
     const response = await fetch(
-      `http://localhost:8080/api/requests/${user.id}/pending`
+      `${API_URL}/api/requests/${user.id}/pending`
     );
 
     if (!response.ok) {
@@ -73,7 +74,7 @@ const fetchUserRequests = async () => {
   const fetchAssignedMentors = async () => {
     try {
       setLoadingAssigned(true);
-      const response = await fetch(`http://localhost:8080/api/users/${user.id}/mentors`, {
+      const response = await fetch(`${API_URL}/api/users/${user.id}/mentors`, {
         method: "GET",
         headers: { "Accept": "application/json" }
       });
@@ -91,7 +92,7 @@ const fetchUserRequests = async () => {
   // ─── FONCTION POUR CHARGER LES MESSAGES DEPUIS L'API ───
   const fetchChatMessages = async (mentorId) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/messages/conversation?user1=${user.id}&user2=${mentorId}`);
+      const response = await fetch(`${API_URL}/api/messages/conversation?user1=${user.id}&user2=${mentorId}`);
       if (response.ok) {
         const data = await response.json();
         setChatMessages(data);
@@ -172,7 +173,7 @@ useEffect(() => {
     setAiPrompt("");
 
     try {
-      const response = await fetch("http://localhost:8080/api/ai/audit", {
+      const response = await fetch(`${API_URL}/api/ai/audit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -214,7 +215,7 @@ useEffect(() => {
         status: "PENDING"
       };
 
-      const response = await fetch("http://localhost:8080/api/requests/create", {
+      const response = await fetch(`${API_URL}/api/requests/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -261,7 +262,7 @@ useEffect(() => {
   };
 
   try {
-    const response = await fetch("http://localhost:8080/api/messages/send-to-mentor", {
+    const response = await fetch(`${API_URL}/api/messages/send-to-mentor`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -296,7 +297,7 @@ useEffect(() => {
   const handleUpgrade = async (tierToApply) => {
     try {
       setUpdating(true);
-      const response = await fetch(`http://localhost:8080/api/users/${user.id}/tier?tier=${tierToApply}`, {
+      const response = await fetch(`${API_URL}/api/users/${user.id}/tier?tier=${tierToApply}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -331,7 +332,7 @@ useEffect(() => {
       try {
         setLoadingMentors(true);
         setMentorsError('');
-        const response = await fetch("http://localhost:8080/api/mentors", {
+        const response = await fetch(`${API_URL}/api/mentors`, {
           method: "GET",
           headers: { "Accept": "application/json" },
         });

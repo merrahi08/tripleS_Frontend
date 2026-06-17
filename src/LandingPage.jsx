@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_URL } from "./config";
 
 export default function LandingPage({ onLoginSuccess }) {
   // State management for the Landing Page interactions
@@ -33,7 +34,7 @@ const handleMentorSubmit = async (e) => {
   e.preventDefault();
 
   try {
-    const response = await fetch("http://localhost:8080/api/mentors/register-full", {
+    const response = await fetch(`${API_URL}/api/mentors/register-full`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -102,8 +103,8 @@ const handleMentorSubmit = async (e) => {
 
   // Determine dynamic target paths and data structure objects
   const targetUrl = isLoginMode 
-    ? "http://localhost:8080/api/users/login" 
-    : "http://localhost:8080/api/users/register";
+    ? `${API_URL}/api/users/login` 
+    : `${API_URL}api/users/register`;
 
   const payload = isLoginMode 
     ? { email: formData.email, password: formData.password }
@@ -180,7 +181,7 @@ const handleMentorSubmit = async (e) => {
               onClick={() => { setSelectedTier('Gratuit'); setIsModalOpen(true); }}
               className="bg-brand-lightGold hover:bg-brand-hoverGold text-brand-black font-semibold px-5 py-2.5 rounded-lg transition-all text-sm shadow-md shadow-brand-gold/10"
             >
-              Rejoindre,
+              Rejoindre
             </button>
             <button 
              onClick={() => {
