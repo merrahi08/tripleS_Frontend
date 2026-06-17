@@ -718,7 +718,7 @@ const handleMentorSubmit = async (e) => {
               placeholder="Expertise, e.g. Funding, Growth, Pitch Deck, Legal..."
               className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50"
               value={mentorFormData.expertise}
-              onChange={(e) => set({ ...mentorFormData, expertise: e.target.value })}
+              onChange={(e) => setMentorFormData({ ...mentorFormData, expertise: e.target.value })}
             />
 
             <textarea
