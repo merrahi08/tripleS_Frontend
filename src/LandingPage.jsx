@@ -104,7 +104,7 @@ const handleMentorSubmit = async (e) => {
   // Determine dynamic target paths and data structure objects
   const targetUrl = isLoginMode 
     ? `${API_URL}/api/users/login` 
-    : `${API_URL}api/users/register`;
+    : `${API_URL}/api/users/register`;
 
   const payload = isLoginMode 
     ? { email: formData.email, password: formData.password }
