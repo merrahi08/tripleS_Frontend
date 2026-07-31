@@ -21,3 +21,7 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #D4AF37;
 }
+.light {
+  background-color: white;
+  color: black;
+}
