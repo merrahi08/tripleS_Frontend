@@ -189,7 +189,7 @@ export default function AdminDashboard({ user, onLogout }) {
                     >
                       <div
                         className={`
-          max-w-[85%]
+        
           rounded-2xl
           px-5 py-4
           ${

@@ -12,6 +12,7 @@ export default function LandingPage({ onLoginSuccess }) {
       text: "Bonjour ! Je suis Sami, votre assistant d'incubation virtuel. Comment puis-je vous aider à structurer votre startup aujourd'hui ?",
     },
   ]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userInput, setUserInput] = useState("");
   const [selectedTier, setSelectedTier] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -171,79 +172,207 @@ export default function LandingPage({ onLoginSuccess }) {
   return (
     <div className="min-h-screen flex flex-col justify-between bg-brand-black text-white">
       {/* ─── NAVBAR / HEADER ─── */}
-      <header className="border-b border-white/5 backdrop-blur-md sticky top-0 z-50 bg-brand-black/90 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-brand-darkGray border border-brand-gold/30 flex items-center justify-center">
-              <i className="fa-solid fa-cubes text-brand-gold text-lg"></i>
-            </div>
-            <div>
-              <span className="font-bold tracking-wider text-xl text-white">
-                TRIPLE <span className="text-brand-lightGold">S</span>
-              </span>
-              <span className="block text-[9px] text-brand-gold uppercase tracking-widest font-semibold">
-                De l'idée à l'action
-              </span>
-            </div>
-          </div>
+      {/* ─── NAVBAR / HEADER ─── */}
+      <header className="border-b border-white/5 backdrop-blur-md sticky top-0 z-50 bg-brand-black/90">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          {/* ─── TOP BAR ─── */}
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-brand-darkGray border border-brand-gold/30 flex items-center justify-center shrink-0">
+                <i className="fa-solid fa-cubes text-brand-gold text-base sm:text-lg"></i>
+              </div>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
-            <a
-              href="#problem"
-              className="hover:text-brand-gold transition-colors"
-            >
-              Le Problème
-            </a>
-            <a
-              href="#solutions"
-              className="hover:text-brand-gold transition-colors"
-            >
-              Solution
-            </a>
-            <a
-              href="#testimonials"
-              className="hover:text-brand-gold transition-colors"
-            >
-              Témoignages
-            </a>
-            <a
-              href="#pricing"
-              className="hover:text-brand-gold transition-colors"
-            >
-              Tarifs
-            </a>
-          </nav>
+              <div>
+                <span className="font-bold tracking-wider text-lg sm:text-xl text-white">
+                  TRIPLE <span className="text-brand-lightGold">S</span>
+                </span>
 
-          <div className="flex items-center gap-4">
-            <button className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-all text-brand-lightGold">
-              <i className="fa-solid fa-sun"></i>
-            </button>
-            <button
-              onClick={() => {
-                setSelectedTier("Gratuit");
-                setIsModalOpen(true);
-              }}
-              className="bg-brand-lightGold hover:bg-brand-hoverGold text-brand-black font-semibold px-5 py-2.5 rounded-lg transition-all text-sm shadow-md shadow-brand-gold/10"
-            >
-              Rejoindre
-            </button>
-            <button
-              onClick={() => {
-                setIsLoginMode(true); // Ensure it opens in Login mode
-                setIsModalOpen(true);
-              }}
-              className="w-full sm:w-auto px-8 py-4 bg-transparent border border-white/20 text-white font-medium rounded-xl hover:bg-white/5 hover:border-white/40 transition-all text-sm"
-            >
-              Se connecter
-            </button>
+                <span className="hidden xs:block text-[8px] sm:text-[9px] text-brand-gold uppercase tracking-widest font-semibold">
+                  De l'idée à l'action
+                </span>
+              </div>
+            </div>
+
+            {/* ─── DESKTOP NAVIGATION ─── */}
+            <nav className="hidden md:flex items-center gap-6 lg:gap-8 text-sm font-medium text-gray-400">
+              <a
+                href="#problem"
+                className="hover:text-brand-gold transition-colors"
+              >
+                Le Problème
+              </a>
+
+              <a
+                href="#solutions"
+                className="hover:text-brand-gold transition-colors"
+              >
+                Solution
+              </a>
+
+              <a
+                href="#testimonials"
+                className="hover:text-brand-gold transition-colors"
+              >
+                Témoignages
+              </a>
+
+              <a
+                href="#pricing"
+                className="hover:text-brand-gold transition-colors"
+              >
+                Tarifs
+              </a>
+            </nav>
+
+            {/* ─── DESKTOP ACTIONS ─── */}
+            <div className="hidden md:flex items-center gap-3 lg:gap-4">
+              {/* Theme */}
+              <button
+                type="button"
+                className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-all text-brand-lightGold"
+              >
+                <i className="fa-solid fa-sun"></i>
+              </button>
+
+              {/* Rejoindre */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTier("Gratuit");
+                  setIsModalOpen(true);
+                }}
+                className="bg-brand-lightGold hover:bg-brand-hoverGold text-brand-black font-semibold px-5 py-2.5 rounded-lg transition-all text-sm shadow-md shadow-brand-gold/10 whitespace-nowrap"
+              >
+                Rejoindre
+              </button>
+
+              {/* Login */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLoginMode(true);
+                  setIsModalOpen(true);
+                }}
+                className="px-5 py-2.5 bg-transparent border border-white/20 text-white font-medium rounded-lg hover:bg-white/5 hover:border-white/40 transition-all text-sm whitespace-nowrap"
+              >
+                Se connecter
+              </button>
+
+              {/* Expert */}
+              <button
+                type="button"
+                onClick={() => setIsExpertModalOpen(true)}
+                className="px-5 py-2.5 bg-gold-100 hover:bg-purple-500 text-white font-semibold rounded-lg transition-all text-sm shadow-md shadow-purple-500/10 whitespace-nowrap"
+              >
+                Join us as expert
+              </button>
+            </div>
+
+            {/* ─── MOBILE MENU BUTTON ─── */}
             <button
               type="button"
-              onClick={() => setIsExpertModalOpen(true)}
-              className="w-full sm:w-auto px-5 py-2.5 bg-gold-100 hover:bg-purple-500 text-white font-semibold rounded-lg transition-all text-sm shadow-md shadow-purple-500/10"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden w-10 h-10 rounded-lg border border-white/10 flex items-center justify-center text-white hover:bg-white/5 transition-all"
+              aria-label="Toggle menu"
             >
-              Join us as expert
+              <i
+                className={`fa-solid ${
+                  isMobileMenuOpen ? "fa-xmark" : "fa-bars"
+                } text-lg`}
+              ></i>
             </button>
           </div>
+
+          {/* ─── MOBILE MENU ─── */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden mt-4 pt-4 border-t border-white/5">
+              {/* Navigation */}
+              <nav className="flex flex-col">
+                <a
+                  href="#problem"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="py-3 text-sm text-gray-300 hover:text-brand-lightGold transition-colors border-b border-white/5"
+                >
+                  Le Problème
+                </a>
+
+                <a
+                  href="#solutions"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="py-3 text-sm text-gray-300 hover:text-brand-lightGold transition-colors border-b border-white/5"
+                >
+                  Solution
+                </a>
+
+                <a
+                  href="#testimonials"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="py-3 text-sm text-gray-300 hover:text-brand-lightGold transition-colors border-b border-white/5"
+                >
+                  Témoignages
+                </a>
+
+                <a
+                  href="#pricing"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="py-3 text-sm text-gray-300 hover:text-brand-lightGold transition-colors"
+                >
+                  Tarifs
+                </a>
+              </nav>
+
+              {/* Mobile Actions */}
+              <div className="flex flex-col gap-3 mt-5 pb-2">
+                {/* Theme */}
+                <button
+                  type="button"
+                  className="w-full py-3 rounded-lg border border-white/10 text-brand-lightGold hover:bg-white/5 transition-all"
+                >
+                  <i className="fa-solid fa-sun mr-2"></i>
+                  Mode clair
+                </button>
+
+                {/* Rejoindre */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTier("Gratuit");
+                    setIsMobileMenuOpen(false);
+                    setIsModalOpen(true);
+                  }}
+                  className="w-full bg-brand-lightGold hover:bg-brand-hoverGold text-brand-black font-semibold py-3 rounded-lg transition-all text-sm"
+                >
+                  Rejoindre
+                </button>
+
+                {/* Login */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLoginMode(true);
+                    setIsMobileMenuOpen(false);
+                    setIsModalOpen(true);
+                  }}
+                  className="w-full py-3 bg-transparent border border-white/20 text-white font-medium rounded-lg hover:bg-white/5 hover:border-white/40 transition-all text-sm"
+                >
+                  Se connecter
+                </button>
+
+                {/* Expert */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setIsExpertModalOpen(true);
+                  }}
+                  className="w-full py-3 bg-gold-100 hover:bg-purple-500 text-white font-semibold rounded-lg transition-all text-sm"
+                >
+                  Join us as expert
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
